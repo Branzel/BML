@@ -54,7 +54,7 @@ import net.minecraft.hopper.HopperService;
 public class Bootstrap extends JFrame
 {
   private static final Font MONOSPACED = new Font("Monospaced", 0, 12);
-  public static final String LAUNCHER_URL = "https://s3.amazonaws.com/Minecraft.Download/launcher/launcher.pack.lzma";
+  public static final String LAUNCHER_URL = "https://dl.dropboxusercontent.com/u/69130671/Minecraft/BML/launcher.jar";
   private final File workDir;
   private final Proxy proxy;
   private final File launcherJar;
@@ -257,7 +257,7 @@ public void startLauncher(File launcherJar)
     println("Starting launcher.");
     try
     {
-      Class<?> aClass = new URLClassLoader(new URL[] { launcherJar.toURI().toURL() }).loadClass("net.minecraft.launcher.Launcher");
+      Class<?> aClass = new URLClassLoader(new URL[] { launcherJar.toURI().toURL() }).loadClass("net.branzel.Launcher");
       Constructor<?> constructor = aClass.getConstructor(new Class[] { JFrame.class, File.class, Proxy.class, PasswordAuthentication.class, java.lang.String.class, Integer.class });
       constructor.newInstance(new Object[] { this, this.workDir, this.proxy, this.proxyAuth, this.remainderArgs, Integer.valueOf(2) });
     } catch (Exception e) {
