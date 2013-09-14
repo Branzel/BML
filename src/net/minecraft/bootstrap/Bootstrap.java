@@ -2,8 +2,6 @@ package net.minecraft.bootstrap;
 
 import LZMA.LzmaInputStream;
 import java.awt.Font;
-import java.io.BufferedInputStream;
-import java.io.BufferedOutputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.Closeable;
 import java.io.File;
@@ -34,7 +32,6 @@ import java.util.jar.JarOutputStream;
 import java.util.jar.Pack200;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
-import java.util.zip.ZipInputStream;
 import javax.swing.JFrame;
 import javax.swing.JScrollBar;
 import javax.swing.JScrollPane;
@@ -60,6 +57,14 @@ public class Bootstrap extends JFrame
   private final File packedLauncherJarNew;
   private final File packedModsZip;
   private final File packedModsZipNew;
+  private final File packedConfigZip;
+  private final File packedConfigZipNew;
+  private final File packedVersionsZip;
+  private final File packedVersionsZipNew;
+  private final File packedResourcepacksZip;
+  private final File packedResourcepacksZipNew;
+  private final File packedLibrariesZip;
+  private final File packedLibrariesZipNew;
   private final JTextArea textArea;
   private final JScrollPane scrollPane;
   private final PasswordAuthentication proxyAuth;
@@ -75,8 +80,16 @@ public class Bootstrap extends JFrame
     launcherJar = new File(workDir, "launcher.jar");
     packedLauncherJar = new File(workDir, "launcher.pack.lzma");
     packedLauncherJarNew = new File(workDir, "launcher.pack.lzma.new");
-    packedModsZip = new File(workDir, "Mods.zip");
-    packedModsZipNew = new File(workDir, "Mods.zip.new");
+    packedConfigZip = new File(workDir, "config.zip");
+    packedConfigZipNew = new File(workDir, "config.zip.new");
+    packedVersionsZip = new File(workDir, "versions.zip");
+    packedVersionsZipNew = new File(workDir, "versions.zip.new");
+    packedResourcepacksZip = new File(workDir, "resourcepacks.zip");
+    packedResourcepacksZipNew = new File(workDir, "resourcepacks.zip.new");
+    packedLibrariesZip = new File(workDir, "libraries.zip");
+    packedLibrariesZipNew = new File(workDir, "libraries.zip.new");
+    packedModsZip = new File(workDir, "mods.zip");
+    packedModsZipNew = new File(workDir, "mods.zip.new");
 
     setSize(854, 480);
     setDefaultCloseOperation(3);
@@ -109,10 +122,22 @@ public class Bootstrap extends JFrame
   public void execute(boolean force) {
     
     checkUpdate(force, packedLauncherJar, packedLauncherJarNew, "https://dl.dropboxusercontent.com/u/69130671/Minecraft/BML/launcher.pack.lzma");
-    checkUpdate(force, packedModsZip, packedModsZipNew, "https://dl.dropboxusercontent.com/u/69130671/Minecraft/BML/Mods.zip");
+    checkUpdate(force, packedModsZip, packedModsZipNew, "https://dl.dropboxusercontent.com/u/69130671/Minecraft/BML/mods.zip");
+    checkUpdate(force, packedConfigZip, packedConfigZipNew, "https://dl.dropboxusercontent.com/u/69130671/Minecraft/BML/config.zip");
+    checkUpdate(force, packedVersionsZip, packedVersionsZipNew, "https://dl.dropboxusercontent.com/u/69130671/Minecraft/BML/versions.zip");
+    checkUpdate(force, packedLibrariesZip, packedLibrariesZipNew, "https://dl.dropboxusercontent.com/u/69130671/Minecraft/BML/libraries.zip");
+    checkUpdate(force, packedResourcepacksZip, packedResourcepacksZipNew, "https://dl.dropboxusercontent.com/u/69130671/Minecraft/BML/resourcepacks.zip");
 
     unpack();
-    unzipmods();
+    delete(new File(workDir, "mods"));
+    delete(new File(workDir, "resourcepacks"));
+    delete(new File(workDir, "libraries"));
+    delete(new File(workDir, "versions"));
+    unzip(packedModsZip, workDir);
+    unzip(packedConfigZip, workDir);
+    unzip(packedVersionsZip, workDir);
+    unzip(packedLibrariesZip, workDir);
+    unzip(packedResourcepacksZip, workDir);
     startLauncher(launcherJar);
   }
 
@@ -158,20 +183,19 @@ public class Bootstrap extends JFrame
     lzmaUnpacked.delete();
   }
   
-  public void unzipmods() {
-      try {
-        ZipFile zipFile = new ZipFile(packedModsZip);
-        Enumeration<?> enu = zipFile.entries();
-        while (enu.hasMoreElements()) {
+    public void unzip(File packedFile, File outputDir) {
+        try {
+            ZipFile zipFile = new ZipFile(packedFile);
+            Enumeration<?> enu = zipFile.entries();
+            while (enu.hasMoreElements()) {
                 ZipEntry zipEntry = (ZipEntry) enu.nextElement();
 
                 String name = zipEntry.getName();
                 long size = zipEntry.getSize();
                 long compressedSize = zipEntry.getCompressedSize();
-                System.out.printf("name: %-20s | size: %6d | compressed size: %6d\n", 
-                                name, size, compressedSize);
+                println ("Extracting " + name);
 
-                File file = new File(workDir, name);
+                File file = new File(outputDir, name);
                 if (name.endsWith("/")) {
                         file.mkdirs();
                         continue;
@@ -192,15 +216,14 @@ public class Bootstrap extends JFrame
                 is.close();
                 fos.close();
 
+            }
+            zipFile.close();
+	} catch (IOException e) {
+		println("Error while extracting " + packedFile.toString() + ": " + e.toString());
         }
-        zipFile.close();
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
-  }
+    }
 
-    public void checkUpdate(boolean force, File packedFile, File packedFileNew, String URL)
-    {
+    public void checkUpdate(boolean force, File packedFile, File packedFileNew, String URL) {
         if (packedFileNew.isFile()) {
             println("Found cached update");
             renameNew(packedFile, packedFileNew);
@@ -240,6 +263,39 @@ public class Bootstrap extends JFrame
             } catch (InterruptedException e) {
                 throw new FatalBootstrapError(new StringBuilder().append("Got interrupted: ").append(e.toString()).toString());
             }
+        }
+    }
+    
+    public void delete(File file) {
+        println("Deleting " + file.toString());
+        try {
+            if(file.isDirectory()){
+                    //directory is empty, then delete it
+                    if(file.list().length==0) {
+                        file.delete();
+                    } else {
+                        //list all the directory contents
+                        String files[] = file.list();
+
+                        for (String temp : files) {
+                            //construct the file structure
+                            File fileDelete = new File(file, temp);
+
+                            //recursive delete
+                            delete(fileDelete);
+                        }
+
+                        //check the directory again, if empty then delete it
+                        if(file.list().length==0){
+                            file.delete();
+                        }
+                    }
+            } else {
+                //if file, then delete it
+                file.delete();
+            }
+        } catch (Exception e) {
+            println("Error while deleting " + file.toString() + e.toString());
         }
     }
     
