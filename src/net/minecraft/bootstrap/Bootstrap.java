@@ -243,15 +243,14 @@ public class Bootstrap extends JFrame
       });
   }
 
-  @SuppressWarnings("resource")
 public void startLauncher(File launcherJar)
   {
     println("Starting launcher.");
     try
     {
-      Class<?> aClass = new URLClassLoader(new URL[] { launcherJar.toURI().toURL() }).loadClass("net.branzel.Launcher");
-      Constructor<?> constructor = aClass.getConstructor(new Class[] { JFrame.class, File.class, Proxy.class, PasswordAuthentication.class, java.lang.String.class, Integer.class });
-      constructor.newInstance(new Object[] { this, this.workDir, this.proxy, this.proxyAuth, this.remainderArgs, Integer.valueOf(2) });
+      Class aClass = new URLClassLoader(new URL[] { launcherJar.toURI().toURL() }).loadClass("net.branzel.Launcher");
+      Constructor constructor = aClass.getConstructor(new Class[] { JFrame.class, File.class, Proxy.class, PasswordAuthentication.class, Integer.class });
+      constructor.newInstance(new Object[] { this, this.workDir, this.proxy, this.proxyAuth, Integer.valueOf(2) });
     } catch (Exception e) {
       throw new FatalBootstrapError("Unable to start: " + e);
     }

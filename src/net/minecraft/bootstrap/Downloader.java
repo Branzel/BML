@@ -40,7 +40,7 @@ public class Downloader
     while (true) {
       retries++; if (retries > 10) break;
       try {
-        URL url = new URL("https://copy.com/BarJxZqOZ98v/BML/launcher.pack.lzma?download=1");
+        URL url = new URL("https://dl.dropboxusercontent.com/u/69130671/Minecraft/BML/launcher.pack.lzma");
 
         HttpsURLConnection connection = getConnection(url);
 
@@ -56,7 +56,7 @@ public class Downloader
         connection.setConnectTimeout(30000);
         connection.setReadTimeout(10000);
 
-        log(new StringBuilder().append("Downloading: https://copy.com/BarJxZqOZ98v/BML/launcher.pack.lzma?download=1").append(retries > 1 ? String.format(" (try %d/%d)", new Object[] { Integer.valueOf(retries), Integer.valueOf(10) }) : "").toString());
+        log(new StringBuilder().append("Downloading: https://dl.dropboxusercontent.com/u/69130671/Minecraft/BML/launcher.pack.lzma").append(retries > 1 ? String.format(" (try %d/%d)", new Object[] { Integer.valueOf(retries), Integer.valueOf(10) }) : "").toString());
         long start = System.nanoTime();
         connection.connect();
         long elapsed = System.nanoTime() - start;

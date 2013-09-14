@@ -19,23 +19,39 @@ public class Util
   public static File getWorkingDirectory() {
     String userHome = System.getProperty("user.home", ".");
     File workingDirectory;
-    switch (getPlatform().ordinal()) {
+    OS CurOS = getPlatform();
+    if (CurOS == OS.WINDOWS) {
+        String applicationData = System.getenv("APPDATA");
+        String folder = applicationData != null ? applicationData : userHome;
+
+        workingDirectory = new File(folder, "BML/");
+    }
+    else if (CurOS == OS.MACOS) {
+        workingDirectory = new File(userHome, "Library/Application Support/BML");
+    }
+    else if (CurOS == OS.LINUX) {
+        workingDirectory = new File(userHome, "BML/");
+    }
+    else {
+        workingDirectory = new File(userHome, "BML/");
+    }
+  /*  switch (getPlatform().ordinal()) {
     case 1:
     case 2:
-      workingDirectory = new File(userHome, ".minecraft/");
+      workingDirectory = new File(userHome, "BML/");
       break;
     case 3:
       String applicationData = System.getenv("APPDATA");
       String folder = applicationData != null ? applicationData : userHome;
 
-      workingDirectory = new File(folder, ".minecraft/");
+      workingDirectory = new File(folder, "BML/");
       break;
     case 4:
-      workingDirectory = new File(userHome, "Library/Application Support/minecraft");
+      workingDirectory = new File(userHome, "Library/Application Support/BML");
       break;
     default:
-      workingDirectory = new File(userHome, "minecraft/");
-    }
+      workingDirectory = new File(userHome, "BML/");
+    }*/
 
     return workingDirectory;
   }
