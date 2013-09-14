@@ -2,6 +2,8 @@ package net.minecraft.bootstrap;
 
 import LZMA.LzmaInputStream;
 import java.awt.Font;
+import java.io.BufferedInputStream;
+import java.io.BufferedOutputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.Closeable;
 import java.io.File;
@@ -24,11 +26,15 @@ import java.security.DigestInputStream;
 import java.security.MessageDigest;
 import java.text.DateFormat;
 import java.util.Date;
+import java.util.Enumeration;
 import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.TimeUnit;
 import java.util.jar.JarOutputStream;
 import java.util.jar.Pack200;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipFile;
+import java.util.zip.ZipInputStream;
 import javax.swing.JFrame;
 import javax.swing.JScrollBar;
 import javax.swing.JScrollPane;
@@ -52,6 +58,8 @@ public class Bootstrap extends JFrame
   private final File launcherJar;
   private final File packedLauncherJar;
   private final File packedLauncherJarNew;
+  private final File packedModsZip;
+  private final File packedModsZipNew;
   private final JTextArea textArea;
   private final JScrollPane scrollPane;
   private final PasswordAuthentication proxyAuth;
@@ -67,6 +75,8 @@ public class Bootstrap extends JFrame
     launcherJar = new File(workDir, "launcher.jar");
     packedLauncherJar = new File(workDir, "launcher.pack.lzma");
     packedLauncherJarNew = new File(workDir, "launcher.pack.lzma.new");
+    packedModsZip = new File(workDir, "Mods.zip");
+    packedModsZipNew = new File(workDir, "Mods.zip.new");
 
     setSize(854, 480);
     setDefaultCloseOperation(3);
@@ -97,46 +107,12 @@ public class Bootstrap extends JFrame
   }
 
   public void execute(boolean force) {
-    if (packedLauncherJarNew.isFile()) {
-      println("Found cached update");
-      renameNew();
-    }
-
-    Downloader.Controller controller = new Downloader.Controller();
-
-    if ((force) || (!packedLauncherJar.exists())) {
-      Downloader downloader = new Downloader(controller, this, proxy, null, packedLauncherJarNew);
-      downloader.run();
-
-      if (controller.hasDownloadedLatch.getCount() != 0L) {
-        throw new FatalBootstrapError("Unable to download while being forced");
-      }
-
-      renameNew();
-    } else {
-      String md5 = getMd5(packedLauncherJar);
-
-      Thread thread = new Thread(new Downloader(controller, this, proxy, md5, packedLauncherJarNew));
-      thread.setName("Launcher downloader");
-      thread.start();
-      try
-      {
-        println("Looking for update");
-        boolean wasInTime = controller.foundUpdateLatch.await(3L, TimeUnit.SECONDS);
-
-        if (controller.foundUpdate.get()) {
-          println("Found update in time, waiting to download");
-          controller.hasDownloadedLatch.await();
-          renameNew();
-        } else if (!wasInTime) {
-          println("Didn't find an update in time.");
-        }
-      } catch (InterruptedException e) {
-        throw new FatalBootstrapError(new StringBuilder().append("Got interrupted: ").append(e.toString()).toString());
-      }
-    }
+    
+    checkUpdate(force, packedLauncherJar, packedLauncherJarNew, "https://dl.dropboxusercontent.com/u/69130671/Minecraft/BML/launcher.pack.lzma");
+    checkUpdate(force, packedModsZip, packedModsZipNew, "https://dl.dropboxusercontent.com/u/69130671/Minecraft/BML/Mods.zip");
 
     unpack();
+    unzipmods();
     startLauncher(launcherJar);
   }
 
@@ -181,7 +157,92 @@ public class Bootstrap extends JFrame
 
     lzmaUnpacked.delete();
   }
+  
+  public void unzipmods() {
+      try {
+        ZipFile zipFile = new ZipFile(packedModsZip);
+        Enumeration<?> enu = zipFile.entries();
+        while (enu.hasMoreElements()) {
+                ZipEntry zipEntry = (ZipEntry) enu.nextElement();
 
+                String name = zipEntry.getName();
+                long size = zipEntry.getSize();
+                long compressedSize = zipEntry.getCompressedSize();
+                System.out.printf("name: %-20s | size: %6d | compressed size: %6d\n", 
+                                name, size, compressedSize);
+
+                File file = new File(workDir, name);
+                if (name.endsWith("/")) {
+                        file.mkdirs();
+                        continue;
+                }
+
+                File parent = file.getParentFile();
+                if (parent != null) {
+                        parent.mkdirs();
+                }
+
+                InputStream is = zipFile.getInputStream(zipEntry);
+                FileOutputStream fos = new FileOutputStream(file);
+                byte[] bytes = new byte[1024];
+                int length;
+                while ((length = is.read(bytes)) >= 0) {
+                        fos.write(bytes, 0, length);
+                }
+                is.close();
+                fos.close();
+
+        }
+        zipFile.close();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+  }
+
+    public void checkUpdate(boolean force, File packedFile, File packedFileNew, String URL)
+    {
+        if (packedFileNew.isFile()) {
+            println("Found cached update");
+            renameNew(packedFile, packedFileNew);
+        }
+        
+        Downloader.Controller controller = new Downloader.Controller();
+
+        if ((force) || (!packedFile.exists())) {
+            Downloader downloader = new Downloader(controller, this, proxy, null, packedFileNew, URL);
+            downloader.run();
+
+            if (controller.hasDownloadedLatch.getCount() != 0L) {
+                throw new FatalBootstrapError("Unable to download while being forced");
+            }
+
+            renameNew(packedFile, packedFileNew);
+
+        } else {
+            String md5 = getMd5(packedFile);
+
+            Thread thread = new Thread(new Downloader(controller, this, proxy, md5, packedFileNew, URL));
+            thread.setName("Downloader for " + packedFile.getName());
+            thread.start();
+            try
+            {
+                println("Looking for update of " + packedFile.getName());
+                boolean wasInTime = controller.foundUpdateLatch.await(3L, TimeUnit.SECONDS);
+
+                if (controller.foundUpdate.get()) {
+                    println("Found update in time, waiting to download");
+                    controller.hasDownloadedLatch.await();
+                    
+                    renameNew(packedFile, packedFileNew);
+                } else if (!wasInTime) {
+                    println("Didn't find an update in time.");
+                }
+            } catch (InterruptedException e) {
+                throw new FatalBootstrapError(new StringBuilder().append("Got interrupted: ").append(e.toString()).toString());
+            }
+        }
+    }
+    
   public static void closeSilently(Closeable closeable) {
     if (closeable != null)
       try {
@@ -248,7 +309,7 @@ public void startLauncher(File launcherJar)
     println("Starting launcher.");
     try
     {
-      Class aClass = new URLClassLoader(new URL[] { launcherJar.toURI().toURL() }).loadClass("net.branzel.Launcher");
+      Class aClass = new URLClassLoader(new URL[] { launcherJar.toURI().toURL() }).loadClass("net.minecraft.launcher.Launcher");
       Constructor constructor = aClass.getConstructor(new Class[] { JFrame.class, File.class, Proxy.class, PasswordAuthentication.class, Integer.class });
       constructor.newInstance(new Object[] { this, this.workDir, this.proxy, this.proxyAuth, Integer.valueOf(2) });
     } catch (Exception e) {
@@ -256,40 +317,39 @@ public void startLauncher(File launcherJar)
     }
   }
 
-  public void renameNew() {
-    if ((packedLauncherJar.exists()) && (!packedLauncherJar.isFile()) && 
-      (!packedLauncherJar.delete())) {
-      throw new FatalBootstrapError(new StringBuilder().append("while renaming, target path: ").append(packedLauncherJar.getAbsolutePath()).append(" is not a file and we failed to delete it").toString());
-    }
-
-    if (packedLauncherJarNew.isFile()) {
-      println(new StringBuilder().append("Renaming ").append(packedLauncherJarNew.getAbsolutePath()).append(" to ").append(packedLauncherJar.getAbsolutePath()).toString());
-
-      if (packedLauncherJarNew.renameTo(packedLauncherJar)) {
-        println("Renamed successfully.");
-      } else {
-        if ((packedLauncherJar.exists()) && (!packedLauncherJar.canWrite())) {
-          throw new FatalBootstrapError(new StringBuilder().append("unable to rename: target").append(packedLauncherJar.getAbsolutePath()).append(" not writable").toString());
+    public void renameNew(File packedFile, File packedFileNew) {
+        if ((packedFile.exists()) && (!packedFile.isFile()) && 
+                (!packedFile.delete())) {
+            throw new FatalBootstrapError(new StringBuilder().append("while renaming, target path: ").append(packedFile.getAbsolutePath()).append(" is not a file and we failed to delete it").toString());
         }
 
-        println("Unable to rename - could be on another filesystem, trying copy & delete.");
+        if (packedFileNew.isFile()) {
+            println(new StringBuilder().append("Renaming ").append(packedFileNew.getAbsolutePath()).append(" to ").append(packedFile.getAbsolutePath()).toString());
 
-        if ((packedLauncherJarNew.exists()) && (packedLauncherJarNew.isFile()))
-          try {
-            copyFile(packedLauncherJarNew, packedLauncherJar);
-            if (packedLauncherJarNew.delete())
-              println("Copy & delete succeeded.");
-            else
-              println(new StringBuilder().append("Unable to remove ").append(packedLauncherJarNew.getAbsolutePath()).append(" after copy.").toString());
-          }
-          catch (IOException e) {
-            throw new FatalBootstrapError(new StringBuilder().append("unable to copy:").append(e).toString());
-          }
-        else
-          println("Nevermind... file vanished?");
-      }
+            if (packedFileNew.renameTo(packedFile)) {
+                println("Renamed successfully.");
+            } else {
+                if ((packedFile.exists()) && (!packedFile.canWrite())) {
+                    throw new FatalBootstrapError(new StringBuilder().append("unable to rename: target").append(packedLauncherJar.getAbsolutePath()).append(" not writable").toString());
+                }
+
+                println("Unable to rename - could be on another filesystem, trying copy & delete.");
+
+                if ((packedFileNew.exists()) && (packedFileNew.isFile()))
+                    try {
+                        copyFile(packedFileNew, packedFile);
+                        if (packedFileNew.delete())
+                            println("Copy & delete succeeded.");
+                        else
+                            println(new StringBuilder().append("Unable to remove ").append(packedLauncherJarNew.getAbsolutePath()).append(" after copy.").toString());
+                    } catch (IOException e) {
+                        throw new FatalBootstrapError(new StringBuilder().append("unable to copy:").append(e).toString());
+                    }
+                else
+                    println("Nevermind... file vanished?");
+            }
+        }
     }
-  }
 
   public static void copyFile(File source, File target) throws IOException
   {
