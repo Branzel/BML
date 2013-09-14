@@ -1,7 +1,6 @@
 package net.minecraft.bootstrap;
 
 import LZMA.LzmaInputStream;
-import java.awt.Dimension;
 import java.awt.Font;
 import java.io.ByteArrayOutputStream;
 import java.io.Closeable;
@@ -18,8 +17,6 @@ import java.net.Authenticator;
 import java.net.InetSocketAddress;
 import java.net.PasswordAuthentication;
 import java.net.Proxy;
-import java.net.Proxy.Type;
-import java.net.URI;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.nio.channels.FileChannel;
@@ -29,12 +26,9 @@ import java.text.DateFormat;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.jar.JarOutputStream;
 import java.util.jar.Pack200;
-import java.util.jar.Pack200.Unpacker;
 import javax.swing.JFrame;
 import javax.swing.JScrollBar;
 import javax.swing.JScrollPane;
@@ -43,12 +37,10 @@ import javax.swing.SwingUtilities;
 import javax.swing.text.BadLocationException;
 import javax.swing.text.DefaultCaret;
 import javax.swing.text.Document;
-import joptsimple.ArgumentAcceptingOptionSpec;
 import joptsimple.OptionException;
 import joptsimple.OptionParser;
 import joptsimple.OptionSet;
 import joptsimple.OptionSpec;
-import joptsimple.OptionSpecBuilder;
 import net.minecraft.hopper.HopperService;
 
 public class Bootstrap extends JFrame
