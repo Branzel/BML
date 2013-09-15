@@ -12,9 +12,11 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.PrintStream;
 import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
 import java.math.BigInteger;
 import java.net.Authenticator;
 import java.net.InetSocketAddress;
+import java.net.MalformedURLException;
 import java.net.PasswordAuthentication;
 import java.net.Proxy;
 import java.net.URL;
@@ -22,6 +24,7 @@ import java.net.URLClassLoader;
 import java.nio.channels.FileChannel;
 import java.security.DigestInputStream;
 import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.text.DateFormat;
 import java.util.Date;
 import java.util.Enumeration;
@@ -46,187 +49,177 @@ import joptsimple.OptionSet;
 import joptsimple.OptionSpec;
 import net.minecraft.hopper.HopperService;
 
-public class Bootstrap extends JFrame
+public final class Bootstrap extends JFrame
 {
-  private static final Font MONOSPACED = new Font("Monospaced", 0, 12);
-  public static final String LAUNCHER_URL = "https://dl.dropboxusercontent.com/u/69130671/Minecraft/BML/launcher.jar";
-  private final File workDir;
-  private final Proxy proxy;
-  private final File launcherJar;
-  private final File packedLauncherJar;
-  private final File packedLauncherJarNew;
-  private final File packedModsZip;
-  private final File packedModsZipNew;
-  private final File packedConfigZip;
-  private final File packedConfigZipNew;
-  private final File packedVersionsZip;
-  private final File packedVersionsZipNew;
-  private final File packedResourcepacksZip;
-  private final File packedResourcepacksZipNew;
-  private final File packedLibrariesZip;
-  private final File packedLibrariesZipNew;
-  private final JTextArea textArea;
-  private final JScrollPane scrollPane;
-  private final PasswordAuthentication proxyAuth;
-  private final String[] remainderArgs;
-  private final StringBuilder outputBuffer = new StringBuilder();
+    private static final Font MONOSPACED = new Font("Monospaced", 0, 12);
+    public static final String LAUNCHER_URL = "https://dl.dropboxusercontent.com/u/69130671/Minecraft/BML/launcher.jar";
+    private final File workDir;
+    private final Proxy proxy;
+    private final File launcherJar;
+    private final File packedLauncherJar;
+    private final File packedLauncherJarNew;
+    private final File packedModsZip;
+    private final File packedModsZipNew;
+    private final File packedConfigZip;
+    private final File packedConfigZipNew;
+    private final File packedVersionsZip;
+    private final File packedVersionsZipNew;
+    private final File packedResourcepacksZip;
+    private final File packedResourcepacksZipNew;
+    private final File packedLibrariesZip;
+    private final File packedLibrariesZipNew;
+    private final JTextArea textArea;
+    private final JScrollPane scrollPane;
+    private final PasswordAuthentication proxyAuth;
+    private final String[] remainderArgs;
+    private final StringBuilder outputBuffer = new StringBuilder();
 
-  public Bootstrap(File workDir, Proxy proxy, PasswordAuthentication proxyAuth, String[] remainderArgs) {
-    super("Minecraft Launcher");
-    this.workDir = workDir;
-    this.proxy = proxy;
-    this.proxyAuth = proxyAuth;
-    this.remainderArgs = remainderArgs;
-    launcherJar = new File(workDir, "launcher.jar");
-    packedLauncherJar = new File(workDir, "launcher.pack.lzma");
-    packedLauncherJarNew = new File(workDir, "launcher.pack.lzma.new");
-    packedConfigZip = new File(workDir, "config.zip");
-    packedConfigZipNew = new File(workDir, "config.zip.new");
-    packedVersionsZip = new File(workDir, "versions.zip");
-    packedVersionsZipNew = new File(workDir, "versions.zip.new");
-    packedResourcepacksZip = new File(workDir, "resourcepacks.zip");
-    packedResourcepacksZipNew = new File(workDir, "resourcepacks.zip.new");
-    packedLibrariesZip = new File(workDir, "libraries.zip");
-    packedLibrariesZipNew = new File(workDir, "libraries.zip.new");
-    packedModsZip = new File(workDir, "mods.zip");
-    packedModsZipNew = new File(workDir, "mods.zip.new");
+    public Bootstrap(File workDir, Proxy proxy, PasswordAuthentication proxyAuth, String[] remainderArgs) {
+        super("Minecraft Launcher");
+        this.workDir = workDir;
+        this.proxy = proxy;
+        this.proxyAuth = proxyAuth;
+        this.remainderArgs = remainderArgs;
+        launcherJar = new File(workDir, "launcher.jar");
+        packedLauncherJar = new File(workDir, "launcher.pack.lzma");
+        packedLauncherJarNew = new File(workDir, "launcher.pack.lzma.new");
+        packedConfigZip = new File(workDir, "config.zip");
+        packedConfigZipNew = new File(workDir, "config.zip.new");
+        packedVersionsZip = new File(workDir, "versions.zip");
+        packedVersionsZipNew = new File(workDir, "versions.zip.new");
+        packedResourcepacksZip = new File(workDir, "resourcepacks.zip");
+        packedResourcepacksZipNew = new File(workDir, "resourcepacks.zip.new");
+        packedLibrariesZip = new File(workDir, "libraries.zip");
+        packedLibrariesZipNew = new File(workDir, "libraries.zip.new");
+        packedModsZip = new File(workDir, "mods.zip");
+        packedModsZipNew = new File(workDir, "mods.zip.new");
 
-    setSize(854, 480);
-    setDefaultCloseOperation(3);
+        setSize(854, 480);
+        setDefaultCloseOperation(3);
 
-    textArea = new JTextArea();
-    textArea.setLineWrap(true);
-    textArea.setEditable(false);
-    textArea.setFont(MONOSPACED);
-    ((DefaultCaret)textArea.getCaret()).setUpdatePolicy(1);
+        textArea = new JTextArea();
+        textArea.setLineWrap(true);
+        textArea.setEditable(false);
+        textArea.setFont(MONOSPACED);
+        ((DefaultCaret)textArea.getCaret()).setUpdatePolicy(1);
 
-    scrollPane = new JScrollPane(textArea);
-    scrollPane.setBorder(null);
-    scrollPane.setVerticalScrollBarPolicy(22);
+        scrollPane = new JScrollPane(textArea);
+        scrollPane.setBorder(null);
+        scrollPane.setVerticalScrollBarPolicy(22);
 
-    add(scrollPane);
-    setLocationRelativeTo(null);
-    setVisible(true);
+        add(scrollPane);
+        setLocationRelativeTo(null);
+        setVisible(true);
 
-    println("Bootstrap (v5)");
-    println(new StringBuilder().append("Current time is ").append(DateFormat.getDateTimeInstance(2, 2, Locale.US).format(new Date())).toString());
-    println(new StringBuilder().append("System.getProperty('os.name') == '").append(System.getProperty("os.name")).append("'").toString());
-    println(new StringBuilder().append("System.getProperty('os.version') == '").append(System.getProperty("os.version")).append("'").toString());
-    println(new StringBuilder().append("System.getProperty('os.arch') == '").append(System.getProperty("os.arch")).append("'").toString());
-    println(new StringBuilder().append("System.getProperty('java.version') == '").append(System.getProperty("java.version")).append("'").toString());
-    println(new StringBuilder().append("System.getProperty('java.vendor') == '").append(System.getProperty("java.vendor")).append("'").toString());
-    println(new StringBuilder().append("System.getProperty('sun.arch.data.model') == '").append(System.getProperty("sun.arch.data.model")).append("'").toString());
-    println("");
-  }
-
-  public void execute(boolean force) {
-    
-    checkUpdate(force, packedLauncherJar, packedLauncherJarNew, "https://dl.dropboxusercontent.com/u/69130671/Minecraft/BML/launcher.pack.lzma");
-    checkUpdate(force, packedModsZip, packedModsZipNew, "https://dl.dropboxusercontent.com/u/69130671/Minecraft/BML/mods.zip");
-    checkUpdate(force, packedConfigZip, packedConfigZipNew, "https://dl.dropboxusercontent.com/u/69130671/Minecraft/BML/config.zip");
-    checkUpdate(force, packedVersionsZip, packedVersionsZipNew, "https://dl.dropboxusercontent.com/u/69130671/Minecraft/BML/versions.zip");
-    checkUpdate(force, packedLibrariesZip, packedLibrariesZipNew, "https://dl.dropboxusercontent.com/u/69130671/Minecraft/BML/libraries.zip");
-    checkUpdate(force, packedResourcepacksZip, packedResourcepacksZipNew, "https://dl.dropboxusercontent.com/u/69130671/Minecraft/BML/resourcepacks.zip");
-
-    unpack();
-    delete(new File(workDir, "mods"));
-    delete(new File(workDir, "resourcepacks"));
-    delete(new File(workDir, "libraries"));
-    delete(new File(workDir, "versions"));
-    unzip(packedModsZip, workDir);
-    unzip(packedConfigZip, workDir);
-    unzip(packedVersionsZip, workDir);
-    unzip(packedLibrariesZip, workDir);
-    unzip(packedResourcepacksZip, workDir);
-    startLauncher(launcherJar);
-  }
-
-  public void unpack() {
-    File lzmaUnpacked = getUnpackedLzmaFile(packedLauncherJar);
-    InputStream inputHandle = null;
-    OutputStream outputHandle = null;
-
-    println(new StringBuilder().append("Reversing LZMA on ").append(packedLauncherJar).append(" to ").append(lzmaUnpacked).toString());
-    try
-    {
-      inputHandle = new LzmaInputStream(new FileInputStream(packedLauncherJar));
-      outputHandle = new FileOutputStream(lzmaUnpacked);
-
-      byte[] buffer = new byte[65536];
-
-      int read = inputHandle.read(buffer);
-      while (read >= 1) {
-        outputHandle.write(buffer, 0, read);
-        read = inputHandle.read(buffer);
-      }
-    } catch (Exception e) {
-      throw new FatalBootstrapError(new StringBuilder().append("Unable to un-lzma: ").append(e).toString());
-    } finally {
-      closeSilently(inputHandle);
-      closeSilently(outputHandle);
+        println("Bootstrap (v5)");
+        println(new StringBuilder().append("Current time is ").append(DateFormat.getDateTimeInstance(2, 2, Locale.US).format(new Date())).toString());
+        println(new StringBuilder().append("System.getProperty('os.name') == '").append(System.getProperty("os.name")).append("'").toString());
+        println(new StringBuilder().append("System.getProperty('os.version') == '").append(System.getProperty("os.version")).append("'").toString());
+        println(new StringBuilder().append("System.getProperty('os.arch') == '").append(System.getProperty("os.arch")).append("'").toString());
+        println(new StringBuilder().append("System.getProperty('java.version') == '").append(System.getProperty("java.version")).append("'").toString());
+        println(new StringBuilder().append("System.getProperty('java.vendor') == '").append(System.getProperty("java.vendor")).append("'").toString());
+        println(new StringBuilder().append("System.getProperty('sun.arch.data.model') == '").append(System.getProperty("sun.arch.data.model")).append("'").toString());
+        println("");
     }
 
-    println(new StringBuilder().append("Unpacking ").append(lzmaUnpacked).append(" to ").append(launcherJar).toString());
+    public void execute(boolean force) {
+        checkUpdate(force, packedLauncherJar, packedLauncherJarNew, "https://dl.dropboxusercontent.com/u/69130671/Minecraft/BML/launcher.pack.lzma");
+        checkUpdate(force, packedModsZip, packedModsZipNew, "https://dl.dropboxusercontent.com/u/69130671/Minecraft/BML/mods.zip");
+        checkUpdate(force, packedConfigZip, packedConfigZipNew, "https://dl.dropboxusercontent.com/u/69130671/Minecraft/BML/config.zip");
+        checkUpdate(force, packedVersionsZip, packedVersionsZipNew, "https://dl.dropboxusercontent.com/u/69130671/Minecraft/BML/versions.zip");
+        checkUpdate(force, packedLibrariesZip, packedLibrariesZipNew, "https://dl.dropboxusercontent.com/u/69130671/Minecraft/BML/libraries.zip");
+        checkUpdate(force, packedResourcepacksZip, packedResourcepacksZipNew, "https://dl.dropboxusercontent.com/u/69130671/Minecraft/BML/resourcepacks.zip");
 
-    JarOutputStream jarOutputStream = null;
-    try {
-      jarOutputStream = new JarOutputStream(new FileOutputStream(launcherJar));
-      Pack200.newUnpacker().unpack(lzmaUnpacked, jarOutputStream);
-    } catch (Exception e) {
-      throw new FatalBootstrapError(new StringBuilder().append("Unable to un-pack200: ").append(e).toString());
-    } finally {
-      closeSilently(jarOutputStream);
+        startLauncher(launcherJar);
     }
 
-    println(new StringBuilder().append("Cleaning up ").append(lzmaUnpacked).toString());
+    public void unpack() {
+        File lzmaUnpacked = getUnpackedLzmaFile(packedLauncherJar);
+        InputStream inputHandle = null;
+        OutputStream outputHandle = null;
 
-    lzmaUnpacked.delete();
-  }
+        println(new StringBuilder().append("Reversing LZMA on ").append(packedLauncherJar).append(" to ").append(lzmaUnpacked).toString());
+        try
+        {
+          inputHandle = new LzmaInputStream(new FileInputStream(packedLauncherJar));
+          outputHandle = new FileOutputStream(lzmaUnpacked);
+
+          byte[] buffer = new byte[65536];
+
+          int read = inputHandle.read(buffer);
+          while (read >= 1) {
+            outputHandle.write(buffer, 0, read);
+            read = inputHandle.read(buffer);
+          }
+        } catch (Exception e) {
+          throw new FatalBootstrapError(new StringBuilder().append("Unable to un-lzma: ").append(e).toString());
+        } finally {
+          closeSilently(inputHandle);
+          closeSilently(outputHandle);
+        }
+
+        println(new StringBuilder().append("Unpacking ").append(lzmaUnpacked).append(" to ").append(launcherJar).toString());
+
+        JarOutputStream jarOutputStream = null;
+        try {
+          jarOutputStream = new JarOutputStream(new FileOutputStream(launcherJar));
+          Pack200.newUnpacker().unpack(lzmaUnpacked, jarOutputStream);
+        } catch (Exception e) {
+          throw new FatalBootstrapError(new StringBuilder().append("Unable to un-pack200: ").append(e).toString());
+        } finally {
+          closeSilently(jarOutputStream);
+        }
+
+        println(new StringBuilder().append("Cleaning up ").append(lzmaUnpacked).toString());
+
+        lzmaUnpacked.delete();
+    }
   
     public void unzip(File packedFile, File outputDir) {
         try {
-            ZipFile zipFile = new ZipFile(packedFile);
-            Enumeration<?> enu = zipFile.entries();
-            while (enu.hasMoreElements()) {
-                ZipEntry zipEntry = (ZipEntry) enu.nextElement();
+            try (ZipFile zipFile = new ZipFile(packedFile)) {
+                Enumeration<?> enu = zipFile.entries();
+                while (enu.hasMoreElements()) {
+                    ZipEntry zipEntry = (ZipEntry) enu.nextElement();
 
-                String name = zipEntry.getName();
-                long size = zipEntry.getSize();
-                long compressedSize = zipEntry.getCompressedSize();
-                println ("Extracting " + name);
+                    String name = zipEntry.getName();
+                    println ("Extracting " + name);
 
-                File file = new File(outputDir, name);
-                if (name.endsWith("/")) {
-                        file.mkdirs();
-                        continue;
+                    File file = new File(outputDir, name);
+                    if (name.endsWith("/")) {
+                            file.mkdirs();
+                            continue;
+                    }
+
+                    File parent = file.getParentFile();
+                    if (parent != null) {
+                            parent.mkdirs();
+                    }
+                    FileOutputStream fos;
+                    try (InputStream is = zipFile.getInputStream(zipEntry)) {
+                        fos = new FileOutputStream(file);
+                        byte[] bytes = new byte[1024];
+                        int length;
+                        while ((length = is.read(bytes)) >= 0) {
+                                fos.write(bytes, 0, length);
+                        }
+                    }
+                    fos.close();
                 }
-
-                File parent = file.getParentFile();
-                if (parent != null) {
-                        parent.mkdirs();
-                }
-
-                InputStream is = zipFile.getInputStream(zipEntry);
-                FileOutputStream fos = new FileOutputStream(file);
-                byte[] bytes = new byte[1024];
-                int length;
-                while ((length = is.read(bytes)) >= 0) {
-                        fos.write(bytes, 0, length);
-                }
-                is.close();
-                fos.close();
-
             }
-            zipFile.close();
 	} catch (IOException e) {
 		println("Error while extracting " + packedFile.toString() + ": " + e.toString());
         }
     }
 
     public void checkUpdate(boolean force, File packedFile, File packedFileNew, String URL) {
+        boolean update = false;
+        File FileFolder = new File(workDir, packedFileNew.getName().substring(0, packedFileNew.getName().indexOf(".")));
+        
         if (packedFileNew.isFile()) {
             println("Found cached update");
             renameNew(packedFile, packedFileNew);
+            update = true;
         }
         
         Downloader.Controller controller = new Downloader.Controller();
@@ -240,7 +233,7 @@ public class Bootstrap extends JFrame
             }
 
             renameNew(packedFile, packedFileNew);
-
+            update = true;
         } else {
             String md5 = getMd5(packedFile);
 
@@ -257,6 +250,7 @@ public class Bootstrap extends JFrame
                     controller.hasDownloadedLatch.await();
                     
                     renameNew(packedFile, packedFileNew);
+                    update = true;
                 } else if (!wasInTime) {
                     println("Didn't find an update in time.");
                 }
@@ -264,9 +258,17 @@ public class Bootstrap extends JFrame
                 throw new FatalBootstrapError(new StringBuilder().append("Got interrupted: ").append(e.toString()).toString());
             }
         }
+        
+        if (packedFile == packedLauncherJar)
+        {
+            unpack();
+        } else if (update == true || !FileFolder.exists()) {
+            deleteFile(FileFolder);
+            unzip(packedFile, workDir);
+        }
     }
     
-    public void delete(File file) {
+    public void deleteFile(File file) {
         println("Deleting " + file.toString());
         try {
             if(file.isDirectory()){
@@ -282,7 +284,7 @@ public class Bootstrap extends JFrame
                             File fileDelete = new File(file, temp);
 
                             //recursive delete
-                            delete(fileDelete);
+                            deleteFile(fileDelete);
                         }
 
                         //check the directory again, if empty then delete it
@@ -326,11 +328,15 @@ public class Bootstrap extends JFrame
       while (read >= 1)
         read = stream.read(buffer);
     }
-    catch (Exception ignored) {
+    catch (NoSuchAlgorithmException | IOException ignored) {
       return null; } finally { closeSilently(stream);
     }
 
-    return String.format("%1$032x", new Object[] { new BigInteger(1, stream.getMessageDigest().digest()) });
+    if (stream != null)
+    {
+        return String.format("%1$032x", new Object[] { new BigInteger(1, stream.getMessageDigest().digest()) });
+    } else
+        return null;
   }
 
   public void println(String string) {
@@ -354,6 +360,7 @@ public class Bootstrap extends JFrame
     }
     if (shouldScroll)
       SwingUtilities.invokeLater(new Runnable() {
+        @Override
         public void run() {
           scrollBar.setValue(2147483647);
         }
@@ -368,7 +375,7 @@ public void startLauncher(File launcherJar)
       Class aClass = new URLClassLoader(new URL[] { launcherJar.toURI().toURL() }).loadClass("net.minecraft.launcher.Launcher");
       Constructor constructor = aClass.getConstructor(new Class[] { JFrame.class, File.class, Proxy.class, PasswordAuthentication.class, Integer.class });
       constructor.newInstance(new Object[] { this, this.workDir, this.proxy, this.proxyAuth, Integer.valueOf(2) });
-    } catch (Exception e) {
+    } catch (MalformedURLException | ClassNotFoundException | NoSuchMethodException | SecurityException | InstantiationException | IllegalAccessException | IllegalArgumentException | InvocationTargetException e) {
       throw new FatalBootstrapError("Unable to start: " + e);
     }
   }
@@ -473,6 +480,7 @@ public void startLauncher(File launcherJar)
       final PasswordAuthentication auth = passwordAuthentication;
       Authenticator.setDefault(new Authenticator()
       {
+        @Override
         protected PasswordAuthentication getPasswordAuthentication() {
           return auth;
         }
