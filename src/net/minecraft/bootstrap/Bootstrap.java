@@ -62,8 +62,6 @@ public final class Bootstrap extends JFrame
     private final File packedModsZipNew;
     private final File packedConfigZip;
     private final File packedConfigZipNew;
-    private final File packedVersionsZip;
-    private final File packedVersionsZipNew;
     private final File packedResourcepacksZip;
     private final File packedResourcepacksZipNew;
     private final File packedLibrariesZip;
@@ -85,8 +83,6 @@ public final class Bootstrap extends JFrame
         packedLauncherJarNew = new File(workDir, "launcher.pack.lzma.new");
         packedConfigZip = new File(workDir, "config.zip");
         packedConfigZipNew = new File(workDir, "config.zip.new");
-        packedVersionsZip = new File(workDir, "versions.zip");
-        packedVersionsZipNew = new File(workDir, "versions.zip.new");
         packedResourcepacksZip = new File(workDir, "resourcepacks.zip");
         packedResourcepacksZipNew = new File(workDir, "resourcepacks.zip.new");
         packedLibrariesZip = new File(workDir, "libraries.zip");
@@ -126,7 +122,6 @@ public final class Bootstrap extends JFrame
         checkUpdate(force, packedLauncherJar, packedLauncherJarNew, "https://dl.dropboxusercontent.com/u/69130671/Minecraft/BML/launcher.pack.lzma");
         checkUpdate(force, packedModsZip, packedModsZipNew, "https://dl.dropboxusercontent.com/u/69130671/Minecraft/BML/mods.zip");
         checkUpdate(force, packedConfigZip, packedConfigZipNew, "https://dl.dropboxusercontent.com/u/69130671/Minecraft/BML/config.zip");
-        checkUpdate(force, packedVersionsZip, packedVersionsZipNew, "https://dl.dropboxusercontent.com/u/69130671/Minecraft/BML/versions.zip");
         checkUpdate(force, packedLibrariesZip, packedLibrariesZipNew, "https://dl.dropboxusercontent.com/u/69130671/Minecraft/BML/libraries.zip");
         checkUpdate(force, packedResourcepacksZip, packedResourcepacksZipNew, "https://dl.dropboxusercontent.com/u/69130671/Minecraft/BML/resourcepacks.zip");
 
@@ -372,7 +367,7 @@ public void startLauncher(File launcherJar)
     println("Starting launcher.");
     try
     {
-      Class aClass = new URLClassLoader(new URL[] { launcherJar.toURI().toURL() }).loadClass("net.minecraft.launcher.Launcher");
+      Class aClass = new URLClassLoader(new URL[] { launcherJar.toURI().toURL() }).loadClass("net.branzel.launcher.Launcher");
       Constructor constructor = aClass.getConstructor(new Class[] { JFrame.class, File.class, Proxy.class, PasswordAuthentication.class, Integer.class });
       constructor.newInstance(new Object[] { this, this.workDir, this.proxy, this.proxyAuth, Integer.valueOf(2) });
     } catch (MalformedURLException | ClassNotFoundException | NoSuchMethodException | SecurityException | InstantiationException | IllegalAccessException | IllegalArgumentException | InvocationTargetException e) {
